@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'corsheaders',  # Wichtig!
     'rest_framework',
     'kalender',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -75,34 +76,29 @@ TEMPLATES = [
 WSGI_APPLICATION = 'kalender.wsgi.application'
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
+    "http://localhost:5173",
 ]
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
 # theoretische Datenbankverbindung zu Supabase, funktioniert aber nicht, da Supabase die Verbindung von Django nicht akzeptiert
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'postgres',
-#         'USER': 'postgres',
-#         'PASSWORD': 'AmarPaulLorenz',
-#         'HOST': 'db.supcrbdpwbkgiqhpqpov.supabase.co',
-#         'PORT': '5432',
-#         'OPTIONS': {
-#             'sslmode': 'require',
-#         },
-#     }
-# }
+# conn string: postgresql://neondb_owner:npg_CqYjG2XF7ung@ep-wild-haze-a8sfdpqf-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require
+DATABASES = {
+    'default': dj_database_url.config(
+        default='postgresql://neondb_owner:npg_CqYjG2XF7ung@ep-wild-haze-a8sfdpqf-pooler.eastus2.azure.neon.tech/neondb?sslmode=require&channel_binding=require',
+        conn_max_age=600,
+        ssl_require=True
+    )
+}
 
 # default local database
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators

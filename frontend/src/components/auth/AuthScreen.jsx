@@ -16,11 +16,19 @@ export function AuthScreen() {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const handleSubmit = async () => {
-    setLoading(true)
-    // Simulate auth round-trip — replace with real API call
-    await new Promise((r) => setTimeout(r, 600))
-    login({ email: form.email, name: form.name || 'Demo User', avatar: '👤' })
+  setLoading(true)
+  try {
+    if (mode === 'login') {
+      await login(form.email, form.password)
+    } else {
+      await register(form.name, form.email, form.password)
+    }
+  } catch (error) {
+    // Error wird bereits im Context gehandelt
+  } finally {
+    setLoading(false)
   }
+}
 
   return (
     <div style={{
