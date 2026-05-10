@@ -1,7 +1,5 @@
 import { api } from './api';
 
-
-
 export const authService = {
     async login(email, password) {
     try {

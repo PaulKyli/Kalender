@@ -80,9 +80,11 @@ function MiniCalendar() {
 // Sidebar
 // ─────────────────────────────────────────────
 export function Sidebar() {
-  const { user, activeView, setView, openNewEvent } = useApp()
+  const { user, activeView, setView, openNewEvent, toggleCalendar } = useApp()
   const { theme, s } = useTheme()
   const { todayEvents } = useEvents()
+  const { calendars, loading } = useApp()
+  const { activeCalendarFilter, setActiveCalendarFilter } = useApp()
 
   return (
     <aside style={s.sidebar}>
@@ -151,6 +153,77 @@ export function Sidebar() {
           )
         })}
       </nav>
+
+      {/* Shared Calendars Section */}
+      <div style={{ borderTop: `1px solid ${theme.separator}`, padding: '12px 0' }}>
+        <div style={{ 
+          padding: '0 20px 8px', fontSize: 11, fontWeight: 700, 
+          color: theme.textTertiary, textTransform: 'uppercase', letterSpacing: '0.5px'
+        }}>
+          Geteilte Kalender
+        </div>
+        
+        {/* Button für "Alle anzeigen" */}
+        <button 
+          onClick={() => {
+            if (activeCalendarFilter.length === calendars.length) {
+              setActiveCalendarFilter([]);
+            } else {
+              setActiveCalendarFilter(calendars.map(c => c.id));
+            }
+          }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '8px 20px', width: 'calc(100% - 16px)', margin: '0 8px',
+            border: 'none', borderRadius: 8, cursor: 'pointer',
+            background: activeCalendarFilter?.length === calendars.length ? '#0000FF20' : 'transparent',
+            textAlign: 'left', fontFamily: 'inherit'
+          }}
+        >
+          <div style={{ 
+            width: 10, height: 10, borderRadius: '50%',
+            border: `2px solid #0000FF`, 
+            background: activeCalendarFilter?.length === calendars.length ? '#0000FF' : 'transparent',
+            transition: 'all 0.2s'
+          }} />
+          <span style={{ fontSize: 14, color: '#0000FF', fontWeight: activeCalendarFilter?.length === calendars.length ? 600 : 500 }}>
+            Alle Kalender
+          </span>
+        </button>
+
+        {/* Liste der dynamischen Kalender */}
+        {calendars.map(cal => {
+          const isActive = activeCalendarFilter?.includes(cal.id);
+          
+          return (
+            <button 
+              key={cal.id} 
+              onClick={() => toggleCalendar(cal.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 12,
+                padding: '8px 20px', width: 'calc(100% - 16px)', margin: '2px 8px',
+                border: 'none', borderRadius: 8, cursor: 'pointer',
+                background: isActive ? `${cal.color}20` : 'transparent',
+                textAlign: 'left', fontFamily: 'inherit', transition: 'all 0.15s'
+              }}
+            >
+              <div style={{ 
+                width: 10, height: 10, borderRadius: '50%', 
+                border: `2px solid ${cal.color}`,
+                background: isActive ? cal.color : 'transparent',
+                transition: 'all 0.2s'
+              }} />
+              <span style={{ 
+                fontSize: 14, 
+                color: cal.color, 
+                fontWeight: isActive ? 600 : 500 
+              }}>
+                {cal.name}
+              </span>
+            </button>
+          )
+        })}
+      </div>
 
       {/* Mini Calendar */}
       <div style={{ borderTop: `1px solid ${theme.separator}` }}>

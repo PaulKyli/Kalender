@@ -49,6 +49,7 @@ class Events(models.Model):
     weather_icon = models.CharField(max_length=10, blank=True, null=True)
     created_at = models.DateTimeField(blank=True, null=True)
     updated_at = models.DateTimeField(blank=True, null=True)
+    calendar = models.ForeignKey('SharedCalendars', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False

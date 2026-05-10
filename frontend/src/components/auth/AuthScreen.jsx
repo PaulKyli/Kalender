@@ -6,7 +6,7 @@ import { Button } from '@/components/shared/Button'
 const MODES = ['login', 'register']
 
 export function AuthScreen() {
-  const { login } = useApp()
+  const { login, register } = useApp()
   const { theme, s } = useTheme()
 
   const [mode, setMode] = useState('login')
@@ -16,19 +16,19 @@ export function AuthScreen() {
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
   const handleSubmit = async () => {
-  setLoading(true)
-  try {
-    if (mode === 'login') {
-      await login(form.email, form.password)
-    } else {
-      await register(form.name, form.email, form.password)
+    setLoading(true)
+    try {
+      if (mode === 'login') {
+        await login(form.email, form.password)
+      } else {
+        await register(form.name, form.email, form.password)
+      }
+    } catch (error) {
+      // Error wird bereits im Context gehandelt
+    } finally {
+      setLoading(false)
     }
-  } catch (error) {
-    // Error wird bereits im Context gehandelt
-  } finally {
-    setLoading(false)
   }
-}
 
   return (
     <div style={{

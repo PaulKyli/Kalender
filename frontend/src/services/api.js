@@ -62,8 +62,18 @@ class ApiClient {
     })
   }
 
-  delete(endpoint) {
-    return this.request(endpoint, { method: 'DELETE' })
+  delete(endpoint, config = {}) {
+    const options = {
+      method: 'DELETE',
+      ...config
+    };
+
+    if (config.data) {
+      options.body = JSON.stringify(config.data);
+      delete options.data; 
+    }
+
+    return this.request(endpoint, options);
   }
 }
 

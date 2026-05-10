@@ -1,3 +1,4 @@
+from .models.calendar_models import SharedCalendars
 from rest_framework import serializers
 
 from .models import Events
@@ -6,7 +7,7 @@ class EventSerializer(serializers.ModelSerializer):
     id = serializers.CharField(read_only=True)
     user_id = serializers.IntegerField(read_only=True)
     
-    endTime = serializers.TimeField(source='end_time')
+    endTime = serializers.TimeField(source='end_time', required=False, allow_null=True)
     time = serializers.TimeField(required=False, allow_null=True)
     location = serializers.CharField(required=False, allow_blank=True, allow_null=True)
     notes = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -25,7 +26,8 @@ class EventSerializer(serializers.ModelSerializer):
             'priority', 
             'location', 
             'notes',
-            'user_id'
+            'user_id',
+            'calendar_id'
         ]
 
     def to_representation(self, instance):
@@ -36,3 +38,10 @@ class EventSerializer(serializers.ModelSerializer):
                 data[field] = ""
         
         return data
+
+class SharedCalendarSerializer(serializers.ModelSerializer):
+    member_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = SharedCalendars
+        fields = ['id', 'name', 'color', 'icon', 'member_count']

@@ -4,7 +4,9 @@ import { RELIGIONS, CATEGORIES } from '@/constants'
 import { Toggle } from '@/components/shared/Toggle'
 import { Button } from '@/components/shared/Button'
 import { SelectField } from '@/components/shared/FormField'
-
+import { useState } from 'react'
+import { ManageMembersModal } from '../shared/ManageMemberModal'
+import { CreateCalendarModal } from '../shared/CreateCalendarModal'
 // ─────────────────────────────────────────────
 // Settings section group
 // ─────────────────────────────────────────────
@@ -53,12 +55,8 @@ function ToggleRow({ icon, label, description, value, onChange, last }) {
 // ─────────────────────────────────────────────
 // Shared calendar card
 // ─────────────────────────────────────────────
-const SHARED_CALENDARS = [
-  { id: 'family', name: 'Familie Maier', icon: '👨‍👩‍👧‍👦', members: 4, color: '#FF9500' },
-  { id: 'work',   name: 'Team Alpenwerk', icon: '💼',       members: 8, color: '#007AFF' },
-]
 
-function SharedCalendarRow({ cal, last }) {
+function SharedCalendarRow({ cal, last, onManage }) {
   const { theme } = useTheme()
   return (
     <div style={{
@@ -68,15 +66,27 @@ function SharedCalendarRow({ cal, last }) {
     }}>
       <div style={{
         width: 38, height: 38, borderRadius: 10,
-        background: cal.color + '22',
+        background: (cal.color || theme.accent) + '22',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 20, flexShrink: 0,
-      }}>{cal.icon}</div>
+        color: cal.color || theme.accent
+      }}>
+        {/* Nutze ein Icon oder Fallback */}
+        {cal.icon || '📅'}
+      </div>
       <div style={{ flex: 1 }}>
         <div style={{ fontSize: 14, fontWeight: 600, color: theme.text }}>{cal.name}</div>
-        <div style={{ fontSize: 12, color: theme.textTertiary }}>{cal.members} Mitglieder</div>
+        <div style={{ fontSize: 12, color: theme.textTertiary }}>
+          {cal.member_count || 1} Mitglieder
+        </div>
       </div>
-      <Button variant="ghost" style={{ fontSize: 13, padding: '6px 12px' }}>Verwalten</Button>
+      <Button 
+        variant="ghost" 
+        style={{ fontSize: 13, padding: '6px 12px' }}
+        onClick={() => onManage(cal)}
+      >
+        Verwalten
+      </Button>
     </div>
   )
 }
@@ -87,6 +97,10 @@ function SharedCalendarRow({ cal, last }) {
 export function SettingsView() {
   const { user, settings, updateSetting, logout } = useApp()
   const { theme, s } = useTheme()
+
+  const { calendars, loading, createCalendar, joinCalendar, fetchCalendars } = useApp()
+  const [managedCalendar, setManagedCalendar] = useState(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   const set = (key) => (value) => updateSetting(key, value)
 
@@ -165,12 +179,32 @@ export function SettingsView() {
 
       {/* Shared Calendars */}
       <SettingsGroup title="Geteilte Kalender">
-        {SHARED_CALENDARS.map((cal, i) => (
-          <SharedCalendarRow key={cal.id} cal={cal} last={i === SHARED_CALENDARS.length - 1} />
-        ))}
+        {loading ? (
+          <div style={{ padding: 20, textAlign: 'center', color: theme.textTertiary }}>
+            Lade Kalender...
+          </div>
+        ) : calendars.length === 0 ? (
+          <div style={{ padding: 20, textAlign: 'center', fontSize: 14, color: theme.textTertiary }}>
+            Du bist noch keinem geteilten Kalender beigetreten.
+          </div>
+        ) : (
+          calendars.map((cal, i) => (
+            <SharedCalendarRow 
+              key={cal.id} 
+              cal={cal} 
+              last={i === calendars.length - 1}
+              onManage={() => setManagedCalendar(cal)}
+            />
+          ))
+        )}
+        
         <div style={{ padding: '12px 16px', borderTop: `1px solid ${theme.separator}` }}>
-          <Button variant="secondary" style={{ width: '100%', fontSize: 14 }}>
-            + Kalender teilen oder beitreten
+          <Button 
+            variant="secondary" 
+            style={{ width: '100%', fontSize: 14 }}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
+            + Neuer Kalender
           </Button>
         </div>
       </SettingsGroup>
@@ -204,6 +238,16 @@ export function SettingsView() {
           </Button>
         </div>
       </SettingsGroup>
+
+      {managedCalendar && (
+        <ManageMembersModal 
+          calendar={managedCalendar} 
+          onClose={() => setManagedCalendar(null)} 
+        />
+      )}
+      {isCreateModalOpen && (
+        <CreateCalendarModal onClose={() => setIsCreateModalOpen(false)} />
+      )}
     </div>
   )
 }

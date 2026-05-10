@@ -1,11 +1,17 @@
 import { useTheme } from '@/hooks/useTheme'
 import { PriorityBadge } from '@/components/shared/Badge'
+import { useApp } from '@/context/AppContext'
 
 /**
  * Compact event row card used in lists (Today, Agenda, etc.)
  */
 export function EventCard({ event, onClick }) {
   const { theme, s } = useTheme()
+  const { calendars } = useApp()
+
+  const linkedCalendar = calendars.find(c => c.id === event.calendar)
+  
+  const displayColor = linkedCalendar ? linkedCalendar.color : event.color
 
   return (
     <article
@@ -32,7 +38,7 @@ export function EventCard({ event, onClick }) {
       {/* Category colour bar */}
       <div style={{
         width: 3, borderRadius: 4,
-        background: event.color,
+        background: displayColor,
         alignSelf: 'stretch',
         flexShrink: 0,
       }} />
@@ -46,6 +52,18 @@ export function EventCard({ event, onClick }) {
           }}>
             {event.title}
           </span>
+          {linkedCalendar && (
+            <span style={{ 
+              fontSize: 10, 
+              background: linkedCalendar.color + '22', 
+              color: linkedCalendar.color,
+              padding: '2px 6px',
+              borderRadius: 4,
+              fontWeight: 700
+            }}>
+              {linkedCalendar.name.toUpperCase()}
+            </span>
+          )}
           <PriorityBadge priority={event.priority} />
         </div>
 

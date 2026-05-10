@@ -12,10 +12,20 @@ import { formatRelativeDate } from '@/utils'
 // Month Grid
 // ─────────────────────────────────────────────
 export function CalendarMonthView() {
-  const { openNewEvent, openEventModal } = useApp()
+  const { openNewEvent, openEventModal, events, activeCalendarFilter, calendars } = useApp()
   const { theme, s } = useTheme()
   const { grouped } = useEvents()
   const cal = useCalendar()
+
+  const filteredGrouped = Object.keys(grouped).reduce((acc, date) => {
+    const dayEvents = grouped[date]
+    const filtered = dayEvents.filter(ev => {
+      const eventCalId = ev.calendar_id || ev.calendar; 
+      return !eventCalId || activeCalendarFilter.includes(eventCalId);
+    })
+    if (filtered.length > 0) acc[date] = filtered
+    return acc
+  }, {})
 
   const handleDayClick = (ds) => openNewEvent(ds)
   const handleEventClick = (e) => { e.stopPropagation(); openEventModal(/* event */ e, 'view') }
@@ -23,6 +33,7 @@ export function CalendarMonthView() {
   return (
     <div className="animate-fadeIn">
       {/* Navigation bar */}
+      
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <button onClick={cal.prevMonth} style={s.iconBtn}>‹</button>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, letterSpacing: '-0.4px', color: theme.text }}>
@@ -50,10 +61,15 @@ export function CalendarMonthView() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {cal.cells.map((day, i) => {
           if (!day) return <div key={`empty-${i}`} style={{ minHeight: 90 }} />
-          const ds        = cal.dateStr(day)
-          const isToday   = ds === cal.todayStr
-          const dayEvents = grouped[ds] ?? []
+          const ds      = cal.dateStr(day)
+          const isToday = ds === cal.todayStr
           const isWeekend = i % 7 >= 5
+
+          const rawEvents = grouped[ds] ?? []
+          const dayEvents = rawEvents.filter(ev => {
+            const eventCalId = ev.calendar_id || ev.calendar;
+            return !eventCalId || activeCalendarFilter.includes(eventCalId);
+          })
 
           return (
             <div
@@ -89,8 +105,10 @@ export function CalendarMonthView() {
                 marginBottom: 6, textAlign: 'right',
               }}>{day}</div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {dayEvents.slice(0, 3).map((ev) => (
+              {dayEvents.slice(0, 3).map((ev) => {
+                const linkedCal = calendars?.find(c => String(c.id) === String(ev.calendar_id || ev.calendar));
+
+                return (
                   <div
                     key={ev.id}
                     onClick={(e) => { e.stopPropagation(); openEventModal(ev, 'view') }}
@@ -99,15 +117,18 @@ export function CalendarMonthView() {
                       background: ev.color + '22', color: ev.color,
                       padding: '2px 5px', borderRadius: 4,
                       overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                      display: 'flex', justifyContent: 'space-between'
                     }}
-                  >{ev.title}</div>
-                ))}
-                {dayEvents.length > 3 && (
-                  <div style={{ fontSize: 10, color: theme.textTertiary, paddingLeft: 5 }}>
-                    +{dayEvents.length - 3} mehr
-                  </div>
-                )}
-              </div>
+                  >
+                    <span>{ev.title}</span>
+                    {linkedCal && (
+                      <span style={{ fontSize: 9, opacity: 0.7, marginLeft: 5, color: linkedCal.color, fontWeight: 500 }}>
+                        {linkedCal.name}
+                      </span>
+                    )}
+                  </div> 
+                )
+              })}
             </div>
           )
         })}
@@ -120,12 +141,21 @@ export function CalendarMonthView() {
 // Agenda (chronological list)
 // ─────────────────────────────────────────────
 export function AgendaView() {
-  const { openEventModal } = useApp()
+  const { openEventModal, activeCalendarFilter } = useApp()
   const { theme } = useTheme()
   const { grouped } = useEvents()
   const todayStr = new Date().toISOString().slice(0, 10)
 
-  const sortedDates = Object.keys(grouped).sort()
+  const filteredGrouped = Object.keys(grouped).reduce((acc, date) => {
+    const filtered = grouped[date].filter(ev => {
+      const eventCalId = ev.calendar_id || ev.calendar;
+      return !eventCalId || activeCalendarFilter.includes(eventCalId);
+    })
+    if (filtered.length > 0) acc[date] = filtered
+    return acc
+  }, {})
+
+  const sortedDates = Object.keys(filteredGrouped).sort()
 
   if (sortedDates.length === 0) {
     return <EmptyState icon="📭" title="Keine Termine" subtitle="Erstelle deinen ersten Termin" />
@@ -151,7 +181,7 @@ export function AgendaView() {
             <div style={{ flex: 1, height: 1, background: theme.separator }} />
           </div>
 
-          {grouped[date].map((ev) => (
+          {filteredGrouped[date].map((ev) => (
             <EventCard key={ev.id} event={ev} onClick={(e) => openEventModal(e, 'view')} />
           ))}
         </div>

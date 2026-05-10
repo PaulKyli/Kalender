@@ -25,6 +25,8 @@ function InfoTile({ icon, label, children }) {
 function ViewMode({ event, onEdit, onDelete, onClose }) {
   const { theme, s } = useTheme()
   const cat = CATEGORIES.find((c) => c.id === event.category)
+  const { calendars } = useApp()
+  const linkedCal = calendars.find(c => c.id === event.calendar_id || c.id === event.calendar)
 
   return (
     <>
@@ -44,6 +46,9 @@ function ViewMode({ event, onEdit, onDelete, onClose }) {
           {event.location && <InfoTile icon="📍" label="Ort">{event.location}</InfoTile>}
           <InfoTile icon={cat?.icon ?? '📌'} label="Kategorie">{cat?.label ?? event.category}</InfoTile>
           <InfoTile icon="🔥" label="Priorität"><PriorityBadge priority={event.priority} /></InfoTile>
+          <InfoTile icon="📁" label="Kalender">
+            {linkedCal ? linkedCal.name : 'Privater Kalender'}
+          </InfoTile>
           {event.weather && (
             <InfoTile icon={event.weather.icon} label="Wetter">
               {event.weather.temp}°C · {event.weather.condition}
@@ -74,7 +79,8 @@ function ViewMode({ event, onEdit, onDelete, onClose }) {
 function EditMode({ initial, isNew, onSave, onCancel }) {
   const { theme, s } = useTheme()
   const [form, setForm] = useState(initial)
-
+  const { calendars, loading } = useApp()
+  
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const setVal = (key, val) => setForm((f) => ({ ...f, [key]: val }))
 
@@ -127,6 +133,21 @@ function EditMode({ initial, isNew, onSave, onCancel }) {
             placeholder="Ort oder Adresse" style={s.input} />
         </FormField>
 
+        {/* NEU: Kalender Auswahl */}
+        <SelectField 
+          label="In Kalender speichern" 
+          value={form.calendar_id ? String(form.calendar_id) : ''}
+          onChange={(e) => setForm({ ...form, calendar_id: e.target.value || null })} 
+          onChange={(v) => setVal('calendar_id', v)}
+        >
+          <option value="">Privater Kalender</option>
+          {calendars && calendars.length > 0 && calendars.map(cal => (
+            <option key={cal.id} value={cal.id}>
+              {cal.name}
+            </option>
+          ))}
+        </SelectField>
+
         {/* Notes */}
         <FormField label="Notizen">
           <textarea value={form.notes} onChange={set('notes')}
@@ -149,6 +170,7 @@ function EditMode({ initial, isNew, onSave, onCancel }) {
 export function EventModal() {
   const { eventModal, closeEventModal, saveEvent, deleteEvent, selectedDate } = useApp()
   const { open, event, mode } = eventModal
+  const { fetchEvents } = useApp();
 
   const [editing, setEditing] = useState(false)
 
@@ -161,13 +183,27 @@ export function EventModal() {
     title: '', date: selectedDate, time: '', endTime: '',
     category: 'personal', priority: 'medium',
     location: '', notes: '', color: '#007AFF',
+    calendar_id: null,
   }
 
-  const handleSave = (form) => {
-    saveEvent({ ...event, ...form })
-    closeEventModal()
-    setEditing(false)
-  }
+  const handleSave = async (formData) => {
+    const cleanedData = {
+      ...formData,
+      time: formData.time === "" ? null : formData.time,
+      endTime: formData.endTime === "" ? null : formData.endTime,
+      location: formData.location === "" ? null : formData.location,
+      notes: formData.notes === "" ? null : formData.notes,
+    };
+    try {
+      await saveEvent(cleanedData);
+      if (fetchEvents) {
+        await fetchEvents(); 
+      } 
+      closeEventModal();
+    } catch (error) {
+      console.error("Fehler beim Speichern:", error);
+    }
+  };
 
   const handleDelete = () => {
     if (event?.id) deleteEvent(event.id)

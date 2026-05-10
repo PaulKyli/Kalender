@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useCallback, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useReducer } from 'react'
 import { DEFAULT_SETTINGS } from '@/constants'
 import { today, generateId } from '@/utils'
 import { authService } from '@/services/auth'
@@ -29,7 +29,10 @@ const initialState = {
   activeView:       'today',
   selectedDate:     today(),
   events:           [],
-  settings:         DEFAULT_SETTINGS,
+  settings: {
+    religion: 'none', 
+    darkItems: false
+  },
   loading:          true,
   eventModal: {
     open:  false,
@@ -106,44 +109,50 @@ function appReducer(state, action) {
 }
 
 export function AppProvider({ children }) {
-  const [state, dispatch] = useReducer(appReducer, initialState)
+  const [state, dispatch] = useReducer(appReducer, initialState);
+  const [activeCalendarFilter, setActiveCalendarFilter] = useState([]);
+  const [calendars, setCalendars] = useState([]);
 
-  // ── 1. AUTH INITIALISIERUNG (Beim Neuladen der Seite) ──
+  // ── NAVIGATION & MODALS ──
+  const setView = useCallback((view) => dispatch({ type: ACTIONS.SET_VIEW, payload: view }), [])
+  const setSelectedDate = useCallback((date) => dispatch({ type: ACTIONS.SET_SELECTED_DATE, payload: date }), [])
+
+  const openEventModal = useCallback((event, mode = 'view') =>
+    dispatch({ type: ACTIONS.OPEN_EVENT_MODAL, payload: { event, mode } }), [])
+
+  const closeEventModal = useCallback(() =>
+    dispatch({ type: ACTIONS.CLOSE_EVENT_MODAL }), [])
+
+  const openNewEvent = useCallback((date) =>
+    dispatch({ type: ACTIONS.OPEN_NEW_EVENT, payload: date }), [])
+
+  // ── AUTH INITIALISIERUNG (Beim Neuladen der Seite) ──
   useEffect(() => {
-  const initAuth = async () => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      const userData = await authService.getCurrentUser();
-      if (userData) {
-        // Das hier setzt den User wieder in den State!
-        dispatch({ type: ACTIONS.SET_USER, payload: userData });
-      } else {
-        localStorage.removeItem('token'); // Token war wohl alt/kaputt
+    const initAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        const userData = await authService.getCurrentUser();
+        if (userData) {
+          // Das hier setzt den User wieder in den State!
+          dispatch({ type: ACTIONS.SET_USER, payload: userData });
+        } else {
+          localStorage.removeItem('token'); // Token war wohl alt/kaputt
+        }
       }
-    }
-    // Wichtig: sag der App, dass der Check fertig ist
-    dispatch({ type: ACTIONS.SET_LOADING, payload: false });
-  };
+      // Wichtig: sag der App, dass der Check fertig ist
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
+    };
 
-  initAuth();
-}, []);
+    initAuth();
+  }, []);
 
-  // ── 2. AUTOMATISCHES LADEN (Wenn User eingeloggt ist) ──
-  useEffect(() => {
-    if (state.user) {
-      loadEvents()
-      loadSettings()
-    }
-  }, [state.user])
-
-  // ── 3. AUTH FUNKTIONEN ──
+  // ── AUTH FUNKTIONEN ──
   const login = useCallback(async (email, password) => {
     try {
       dispatch({ type: ACTIONS.SET_LOADING, payload: true })
       const user = await authService.login(email, password)
       dispatch({ type: ACTIONS.SET_USER, payload: user })
     } catch (error) {
-      console.error('Login failed:', error)
       alert('Login fehlgeschlagen: ' + error.message)
     } finally {
       dispatch({ type: ACTIONS.SET_LOADING, payload: false })
@@ -168,7 +177,7 @@ export function AppProvider({ children }) {
     dispatch({ type: ACTIONS.LOGOUT })
   }, [])
 
-  // ── 4. EVENTS FUNKTIONEN ──
+  // ── EVENTS FUNKTIONEN ──
   const loadEvents = useCallback(async () => {
     try {
       const events = await eventsService.getAll()
@@ -178,42 +187,42 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  const addEvent = useCallback(async (event) => {
+  const saveEvent = useCallback(async (formData) => {
     try {
-      const newEvent = await eventsService.create(event)
-      dispatch({ type: ACTIONS.ADD_EVENT, payload: newEvent })
-    } catch (error) {
-      console.error('Add event failed:', error)
-      alert('Fehler beim Erstellen des Termins')
-    }
-  }, [])
+      dispatch({ type: ACTIONS.SET_LOADING, payload: true });
 
-  const updateEvent = useCallback(async (event) => {
-    try {
-      const updated = await eventsService.update(event.id, event)
-      dispatch({ type: ACTIONS.UPDATE_EVENT, payload: updated })
+      if (formData.id) {
+        // UPDATE: Bestehender Termin
+        const updated = await eventsService.update(formData.id, formData);
+        dispatch({ type: ACTIONS.UPDATE_EVENT, payload: updated });
+      } else {
+        // CREATE: Neuer Termin (inkl. calendar_id für geteilte Kalender)
+        const newEvent = await eventsService.create(formData);
+        dispatch({ type: ACTIONS.ADD_EVENT, payload: newEvent });
+      }
+
+      closeEventModal();
     } catch (error) {
-      console.error('Update event failed:', error)
-      alert('Fehler beim Aktualisieren des Termins')
+      console.error('Save event failed:', error);
+      alert('Fehler beim Speichern des Termins. Bitte versuche es erneut.');
+    } finally {
+      dispatch({ type: ACTIONS.SET_LOADING, payload: false });
     }
-  }, [])
+  }, [closeEventModal]);
 
   const deleteEvent = useCallback(async (id) => {
     try {
-      await eventsService.delete(id)
-      dispatch({ type: ACTIONS.DELETE_EVENT, payload: id })
+      await eventsService.delete(id);
+      dispatch({ type: ACTIONS.DELETE_EVENT, payload: id });
+      closeEventModal();
     } catch (error) {
-      console.error('Delete event failed:', error)
-      alert('Fehler beim Löschen des Termins')
+      console.error('Delete event failed:', error);
+      alert('Fehler beim Löschen des Termins');
     }
-  }, [])
+  }, [closeEventModal]);
 
-  const saveEvent = useCallback((form) => {
-    if (form.id) updateEvent(form)
-    else addEvent(form)
-  }, [addEvent, updateEvent])
 
-  // ── 5. SETTINGS FUNKTIONEN ──
+  // ── SETTINGS FUNKTIONEN ──
   const loadSettings = useCallback(async () => {
     try {
       const settings = await settingsService.get()
@@ -232,18 +241,21 @@ export function AppProvider({ children }) {
     }
   }, [])
 
-  // ── 6. NAVIGATION & MODALS ──
-  const setView = useCallback((view) => dispatch({ type: ACTIONS.SET_VIEW, payload: view }), [])
-  const setSelectedDate = useCallback((date) => dispatch({ type: ACTIONS.SET_SELECTED_DATE, payload: date }), [])
+  const fetchCalendars = useCallback(async () => {
+    try {
+      // WICHTIG: Prüfen, ob Token vorhanden ist, bevor der Call rausgeht
+      const token = localStorage.getItem('token');
+      if (!token) return;
 
-  const openEventModal = useCallback((event, mode = 'view') =>
-    dispatch({ type: ACTIONS.OPEN_EVENT_MODAL, payload: { event, mode } }), [])
-
-  const closeEventModal = useCallback(() =>
-    dispatch({ type: ACTIONS.CLOSE_EVENT_MODAL }), [])
-
-  const openNewEvent = useCallback((date) =>
-    dispatch({ type: ACTIONS.OPEN_NEW_EVENT, payload: date }), [])
+      const response = await fetch('/api/calendars/me/', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setCalendars(data);
+    } catch (err) {
+      console.error("Fehler beim Laden der Kalender:", err);
+    }
+  }, []);
 
   // ── VALUE FÜR CONSUMER ──
   const value = {
@@ -256,9 +268,6 @@ export function AppProvider({ children }) {
     logout,
     setView,
     setSelectedDate,
-    addEvent,
-    updateEvent,
-    deleteEvent,
     saveEvent,
     updateSetting,
     openEventModal,
@@ -266,7 +275,55 @@ export function AppProvider({ children }) {
     openNewEvent,
   }
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+  // Auto-load events & settings, wenn sich der User ändert (z.B. nach Login)
+  useEffect(() => {
+    if (state.user) {
+      loadEvents()
+      loadSettings()
+      fetchCalendars();
+    }
+  }, [state.user, fetchCalendars])
+
+  useEffect(() => {
+  if (calendars.length > 0 && activeCalendarFilter.length === 0) {
+    setActiveCalendarFilter(calendars.map(c => c.id));
+  }
+}, [calendars])
+
+  // Funktion zum Umschalten (für die Sidebar)
+  const toggleCalendar = (id) => {
+    setActiveCalendarFilter(prev => 
+      prev.includes(id) ? prev.filter(cid => cid !== id) : [...prev, id]
+    );
+  };
+
+
+  return (
+    <AppContext.Provider
+      value={{
+        ...state, // Kopiert user, selectedDate, settings, eventModal, loading...
+        login,    
+        register,
+        logout,
+        activeCalendarFilter,
+        setActiveCalendarFilter,
+        setView,
+        setSelectedDate,
+        openNewEvent,    
+        openEventModal,
+        closeEventModal,
+        saveEvent,
+        calendars, 
+        fetchCalendars,
+        activeCalendarFilter, 
+        toggleCalendar,
+        deleteEvent,
+        fetchEvents: loadEvents, 
+      }}
+    >
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export const useApp = () => {

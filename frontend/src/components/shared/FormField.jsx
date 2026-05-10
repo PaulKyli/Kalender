@@ -17,7 +17,7 @@ export function SelectField({ label, value, onChange, children, style }) {
   return (
     <FormField label={label} style={style}>
       <div style={{ position: 'relative' }}>
-        <select value={value} onChange={(e) => onChange(e.target.value)} style={s.select}>
+        <select value={value ?? ''} onChange={(e) => onChange(e.target.value)} style={s.select}>
           {children}
         </select>
         <span style={{
